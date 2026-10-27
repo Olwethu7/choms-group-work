@@ -1,5 +1,47 @@
 # CHOMS - Community Health & Outreach Management System
 
+![Web app tests](https://github.com/Olwethu7/choms-group-work/actions/workflows/main.yml/badge.svg)
+
+**Module:** Work Integrated Learning 3 (XADAD7112w), Advanced Diploma in Application Development, The Independent Institute of Education
+**Client:** Maternal, Adolescent and Child Health Institute (MatCH), Durban
+**Firebase project:** `match-choms`
+
+## Team
+
+| Name | Student number |
+|---|---|
+| Mhlengi Mathonsi | ST10399162 |
+| Junior Sbonakaliso Madlopha | ST10377944 |
+| Olwethu Libongwe Cwele | ST10344453 |
+
+## Repository layout
+
+```
+.
+|-- web/                 Public website (index.html) and the installable PWA (web/app)
+|-- android/             Native Android app (Java, MVVM + Repository)
+|-- firebase/            Firestore security rules and rules tests
+|-- functions/           Cloud Function (deleteUser)
+|-- tools/               Admin utility scripts
+|-- docs/
+|   |-- report/          Final Task 2 report (Word)
+|   |-- presentation/    Defence slides (PowerPoint and PDF)
+|   `-- TESTING.md       Test strategy and how to run the tests
+|-- .github/workflows/   CI: Jest tests and Android APK build
+|-- FIREBASE_SETUP.md    Firebase setup and deployment guide
+`-- firebase.json        Hosting, rules and functions configuration
+```
+
+## Run locally
+
+```
+cd web && npx http-server -p 8123
+```
+
+Website: http://127.0.0.1:8123/index.html  |  Web app: http://127.0.0.1:8123/app/index.html
+
+---
+
 Child, maternal and adolescent health outreach for Durban communities.
 One Firebase backend, three matching front ends with the same design:
 
