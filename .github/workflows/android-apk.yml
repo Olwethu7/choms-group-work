@@ -6,14 +6,14 @@ on:
   workflow_dispatch:
   push:
     branches: [ main ]
-    paths: [ 'android/**', '.github/workflows/android-apk.yml' ]
+    paths: [ 'choms-suite/android/**', '.github/workflows/android-apk.yml' ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: android
+        working-directory: choms-suite/android
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +29,7 @@ jobs:
           GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
           if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > app/google-services.json; fi
-          test -f app/google-services.json || { echo "::error::android/app/google-services.json is missing"; exit 1; }
+          test -f app/google-services.json || { echo "::error::choms-suite/android/app/google-services.json is missing"; exit 1; }
           if grep -q "REPLACE_ME" app/google-services.json; then
             echo "::error::google-services.json is still the placeholder. Follow FIREBASE_SETUP.md step 6, then add your own file (or the GOOGLE_SERVICES_JSON secret)."; exit 1;
           fi
@@ -45,4 +45,4 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: CHOMS-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: choms-suite/android/app/build/outputs/apk/debug/app-debug.apk
