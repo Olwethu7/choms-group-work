@@ -32,6 +32,9 @@ choms-suite/
 
 ## Run locally
 
+Double-click `start-server.bat` (Windows), or run the command below. To publish a public link, double-click `deploy-hosting.bat` (Firebase Hosting: https://match-choms.web.app).
+
+
 ```
 cd choms-suite/web && npx http-server -p 8123
 ```
