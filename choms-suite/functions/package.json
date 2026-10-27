@@ -1,0 +1,15 @@
+{
+  "name": "choms-functions",
+  "description": "CHOMS Cloud Functions - admin-only deletion of users (Auth account + profile + audit entry)",
+  "private": true,
+  "main": "index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.4.0",
+    "firebase-functions": "^6.4.0"
+  }
+}

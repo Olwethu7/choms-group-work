@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0B7A7A"/>
+  <meta name="description" content="CHOMS web app: community health and outreach management for child welfare"/>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://www.gstatic.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://www.gstatic.com wss://*.firebaseio.com; img-src 'self' data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; frame-src https://*.firebaseapp.com https://*.web.app; base-uri 'self'; form-action 'self'"/>
+  <title>CHOMS</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="icon" href="../assets/logo.svg" type="image/svg+xml"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Figtree:wght@400;500;600;700&display=swap"/>
+  <link rel="stylesheet" href="../assets/brand.css"/>
+  <link rel="stylesheet" href="css/app.css"/>
+</head>
+<body>
+  <noscript><p style="padding:2rem">CHOMS needs JavaScript to run. Please enable it in your browser.</p></noscript>
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+  <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14.2c2.2.6 3.5 2.5 3.5 5.8"/></symbol>
+  <symbol id="i-visits" viewBox="0 0 24 24"><path d="M9 4h6v3H9z"/><path d="M7 5H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2"/><path d="M8 12h8M8 16h5"/></symbol>
+  <symbol id="i-referral" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-reports" viewBox="0 0 24 24"><path d="M4 20V4M4 20h16"/><path d="M8 16v-5M12 16V8M16 16v-8"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></symbol>
+  <symbol id="i-audit" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5C5 15.5 3 11.5 3 8.8 3 6.2 5 4.5 7.3 4.5c1.9 0 3.5 1 4.7 2.7 1.2-1.7 2.8-2.7 4.7-2.7C19 4.5 21 6.2 21 8.8c0 2.7-2 6.7-9 11.7z"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .6-7.95A6 6 0 0 0 6 11a3.5 3.5 0 0 0 1 7z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+  <symbol id="i-phone" viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18.5h2"/></symbol>
+  <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-user-plus" viewBox="0 0 24 24"><circle cx="10" cy="8" r="3.5"/><path d="M3 20c0-3.6 3-6 7-6 1.4 0 2.6.3 3.7.8"/><path d="M18 14v6M15 17h6"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+</svg>
+
+
+  <!-- Shown when js/firebase-config.js has not been filled in yet -->
+  <div id="setup-banner" class="setup" hidden>
+    <div class="card" style="max-width:480px">
+      <h1>Firebase setup needed</h1>
+      <p class="muted" style="margin-top:.6rem">Open <code>app/js/firebase-config.js</code>, paste your Firebase web-app configuration, then reload this page. The full steps are in <code>FIREBASE_SETUP.md</code>.</p>
+    </div>
+  </div>
+
+  <!-- ================= SIGN IN / CREATE ACCOUNT ================= -->
+  <div id="login-view" class="auth">
+    <aside class="auth-art">
+      <img src="../assets/hero.svg" alt="" width="640" height="520"/>
+      <div>
+        <h2>Every child counted. Every family reached.</h2>
+        <p>One secure record for registrations, home visits, referrals and appointments.</p>
+      </div>
+      <ul class="auth-points">
+        <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Guardian consent recorded for every child</li>
+        <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Works offline and syncs when signal returns</li>
+        <li><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg>Every change is logged for accountability</li>
+      </ul>
+    </aside>
+
+    <section class="auth-panel">
+      <div class="auth-top">
+        <a class="auth-brand" href="../index.html"><img src="../assets/logo.svg" alt="" width="40" height="40"/>CHOMS</a>
+        <a class="btn btn-ghost btn-sm" href="../index.html">Back to website</a>
+      </div>
+
+      <div class="card auth-card">
+        <div class="tabs" role="tablist" aria-label="Account">
+          <button type="button" role="tab" id="tab-login" aria-selected="true" aria-controls="login-form">Sign in</button>
+          <button type="button" role="tab" id="tab-signup" aria-selected="false" aria-controls="signup-form">Create account</button>
+        </div>
+        <div id="notice" class="notice" role="status" hidden></div>
+
+        <form id="login-form" novalidate>
+          <h1>Welcome back</h1>
+          <p class="sub">Sign in to continue helping children and families.</p>
+          <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required placeholder="you@example.org"/></div>
+          <div class="field"><label for="password">Password</label>
+            <div class="pw-wrap"><input id="password" name="password" type="password" autocomplete="current-password" required/><button class="pw-toggle" type="button" data-toggle="password">Show</button></div></div>
+          <div class="err" id="login-error" role="alert"></div>
+          <button class="btn btn-primary btn-block btn-lg" type="submit">Sign in</button>
+          <p class="center" style="margin-top:1rem"><a href="#" id="forgot-link">Forgot password?</a></p>
+        </form>
+
+        <form id="signup-form" novalidate hidden>
+          <h1>Create your account</h1>
+          <p class="sub">An administrator will approve it before you can see any records.</p>
+          <div class="field"><label for="su-name">Full name <span class="req">*</span></label><input id="su-name" name="name" autocomplete="name" maxlength="80" required/><div class="err" id="su-err-name" role="alert"></div></div>
+          <div class="field"><label for="su-email">Email <span class="req">*</span></label><input id="su-email" name="email" type="email" autocomplete="email" maxlength="120" required/><div class="err" id="su-err-email" role="alert"></div></div>
+          <div class="form-row">
+            <div class="field"><label for="su-phone">Cell number</label><input id="su-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="082 123 4567"/><div class="err" id="su-err-phone" role="alert"></div></div>
+            <div class="field"><label for="su-role">I am a <span class="req">*</span></label><select id="su-role" name="role"><option value="chw">Community Health Worker (CHW)</option><option value="coordinator">Programme Coordinator</option></select><div class="err" id="su-err-role" role="alert"></div></div>
+          </div>
+          <div class="field"><label for="su-password">Password <span class="req">*</span></label>
+            <div class="pw-wrap"><input id="su-password" name="password" type="password" autocomplete="new-password" maxlength="64" required/><button class="pw-toggle" type="button" data-toggle="su-password">Show</button></div>
+            <div class="meter" aria-hidden="true"><i id="su-meter"></i></div><small class="help" id="su-strength">At least 8 characters with upper-case, lower-case and a number.</small><div class="err" id="su-err-password" role="alert"></div></div>
+          <div class="field"><label for="su-confirm">Confirm password <span class="req">*</span></label><input id="su-confirm" name="confirm" type="password" autocomplete="new-password" maxlength="64" required/><div class="err" id="su-err-confirm" role="alert"></div></div>
+          <div class="field"><label class="check"><input id="su-consent" name="consent" type="checkbox"/><span>I understand this system holds children's personal information. I will only use it for my work and in line with POPIA. <span class="req">*</span></span></label><div class="err" id="su-err-consent" role="alert"></div></div>
+          <div class="err" id="su-error" role="alert"></div>
+          <button class="btn btn-primary btn-block btn-lg" type="submit" id="su-submit">Create account</button>
+        </form>
+
+        <div id="signup-done" class="done" hidden>
+          <div class="big"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><use href="#i-check"/></svg></div>
+          <h1 id="done-title">Request sent</h1>
+          <p class="muted" id="done-text">Your account has been created and is waiting for an administrator to approve it. You will be able to sign in as soon as that is done.</p>
+          <button class="btn btn-primary btn-block" type="button" id="back-to-login">Back to sign in</button>
+        </div>
+      </div>
+      <p class="fine center" style="max-width:460px;margin:0 auto">Activity on this system is logged. Personal information is processed in line with POPIA.</p>
+    </section>
+  </div>
+
+  <!-- ================= APP SHELL ================= -->
+  <div id="app" hidden>
+    <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+      <a class="brand" href="#/dashboard"><img src="../assets/logo.svg" alt="" width="36" height="36"/><div>CHOMS<small>Child welfare outreach</small></div></a>
+      <nav id="nav"></nav>
+      <div class="side-foot">
+        <div class="user"><span class="avatar" id="user-avatar">?</span><div><strong id="user-name"></strong><small id="user-role"></small></div></div>
+        <button class="btn btn-ghost btn-block" id="logout-btn" type="button">Sign out</button>
+      </div>
+    </aside>
+    <div class="main">
+      <header class="topbar">
+        <button class="icon-btn menu-btn" id="menu-btn" type="button" aria-label="Open menu"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
+        <h1 id="page-title">Dashboard</h1>
+        <div class="top-actions"><span id="sync-chip" class="chip" role="status" aria-live="polite"></span><button class="btn btn-sm" id="sync-btn" type="button">Sync now</button></div>
+      </header>
+      <div class="offline-bar" role="status">You are offline. You can keep working. Changes are saved on this device and will sync automatically.</div>
+      <main id="view" tabindex="-1"></main>
+    </div>
+    <nav class="tabbar" id="tabbar" aria-label="Quick navigation"></nav>
+  </div>
+
+  <div id="toasts" aria-live="polite"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

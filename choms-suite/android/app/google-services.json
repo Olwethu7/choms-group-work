@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "553270228784",
+    "project_id": "match-choms",
+    "storage_bucket": "match-choms.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:553270228784:android:8e007ad7f636afc339faf5",
+        "android_client_info": {
+          "package_name": "com.match.choms"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDV9cwgQt7YGPoIOXrC1yxKt9MXbCHBtJw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

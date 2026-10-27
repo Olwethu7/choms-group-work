@@ -1,0 +1,20 @@
+{
+  "name": "choms-web",
+  "version": "1.0.0",
+  "description": "CHOMS - Community Health & Outreach Management System (web app)",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "test:coverage": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
+    "serve": "npx http-server . -p 8080 -c-1"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "transform": {},
+    "collectCoverageFrom": ["js/utils.js"]
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}

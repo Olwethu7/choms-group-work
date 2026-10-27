@@ -1,0 +1,362 @@
+rules_version = '2';
+
+// CHOMS - Firestore Security Rules (shared by the web app, website sign-up and Android app)
+//
+// ROLES  (users/{uid}.role)
+//   pending     - just registered (asked to be coordinator or chw). Reads only their own profile. No data access.
+//   chw         - Community Health Worker. Works only with the records assigned to them.
+//   coordinator - reads ALL records and the team list, prepares reports. Cannot change records or manage users.
+//   admin       - everything: assigns work to CHWs, manages users, approves reports, reads the audit log.
+//   users/{uid}.status 'deactivated' switches any approved account off (no access) until an admin reactivates it.
+//
+// AUDIT CONTRACT
+//   Every write must be sent in ONE batch together with its auditLogs entry, otherwise it is rejected.
+//   - create / update: the document carries `auditId`; that audit doc must be NEW in the same batch
+//     and describe this collection + document + signed-in user.
+//   - delete: the batch writes the audit doc with the fixed id  'delete-<collection>-<docId>'.
+//   - Users: the `deleteUser` Cloud Function deletes login + profile (logs its own entry); an admin may also
+//     delete just the profile from the app, with the usual 'delete-users-<uid>' audit entry.
+//
+// The apps also hide buttons by role, but THESE RULES are what actually protect the data.
+//
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users           Document ID: Firebase Auth UID
+//   - name: string (required, 1-80)
+//   - email: string (required, 1-120, lower-case; immutable)
+//   - phone: string (optional, 0-20)
+//   - role: 'pending' | 'chw' | 'coordinator' | 'admin' (required; only an admin changes it)
+//   - requestedRole: 'chw' | 'coordinator' (set at sign-up; what the person asked to be)
+//   - status: 'active' | 'deactivated' (optional; missing = active; only an admin changes it)
+//   - createdAt: string ISO date (required, immutable)
+//   - updatedAt / updatedBy / approvedAt: string (optional)   approvedBy: string (optional, 0-80)
+//   - auditId: string (required) - id of the auditLogs entry for the latest write
+//
+// Collection: auditLogs       Document ID: random, or 'delete-<collection>-<docId>'
+//   - action: 'register' | 'approve' | 'create' | 'update' | 'delete'
+//   - collection: string (1-40)   docId: string (1-128)   summary: string (0-200)
+//   - userId: string (= writer's uid)   userName: string (0-80)   role: string (= writer's role)
+//   - at: string ISO date (1-40)
+//   Immutable: never updated or deleted from the apps.
+//
+// Collections: beneficiaries (owner field assignedChwId), visits / referrals / appointments (owner field chwId)
+//   Domain fields as validated below, plus meta: createdAt, createdBy (immutable), updatedAt, updatedBy, auditId.
+//   Optional string fields may also be null (the Android app writes null for empty optional values).
+//
+// Collection: reports (admin + coordinator; only admin approves)
+//   - from, to: string   summaryJson: string (<= 20000)   status: 'pending' | 'approved'
+//   - generatedBy / approvedBy / approvedAt: string, plus the meta fields above.
+//
+// ===============================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() { return request.auth != null; }
+    function me()              { return request.auth.uid; }
+    function isOwner(userId)   { return isAuthenticated() && me() == userId; }
+    function userPath(uid)     { return /databases/$(database)/documents/users/$(uid); }
+    function auditPath(id)     { return /databases/$(database)/documents/auditLogs/$(id); }
+
+    function hasProfile() { return isAuthenticated() && exists(userPath(me())); }
+    function profile()    { return get(userPath(me())).data; }
+    function myRole()     { return profile().role; }
+    function active()     { return hasProfile() && myRole() in ['chw', 'coordinator', 'admin']
+                                   && profile().get('status', 'active') != 'deactivated'; }
+    function isAdmin()    { return active() && myRole() == 'admin'; }
+    function isCoord()    { return active() && myRole() == 'coordinator'; }
+    function isStaff()    { return isAdmin() || isCoord(); }        // may read everything
+    function isChw()      { return active() && myRole() == 'chw'; }
+
+    // A CHW owns the existing document / the document being written
+    function ownsExisting(field) { return isChw() && resource.data.get(field, '') == me(); }
+    function ownsIncoming(field) { return isChw() && request.resource.data.get(field, '') == me(); }
+
+    // Admin assigning work: the assignee must be an approved CHW (checked when the field is set or changed)
+    function assigneeIsChw(field) {
+      let uid = request.resource.data.get(field, '');
+      return (resource != null && resource.data.get(field, '') == uid)
+          || (get(userPath(uid)).data.get('role', '') == 'chw'
+              && get(userPath(uid)).data.get('status', 'active') != 'deactivated');
+    }
+    // Admin can write any record (assignee must be a CHW); a CHW only their own, without reassigning it
+    function canCreateRecord(field) { return (isAdmin() && assigneeIsChw(field)) || ownsIncoming(field); }
+    function canUpdateRecord(field) { return (isAdmin() && assigneeIsChw(field)) || (ownsExisting(field) && ownsIncoming(field)); }
+
+    function str(v, minLen, maxLen) { return v is string && v.size() >= minLen && v.size() <= maxLen; }
+    // optional field: missing, null, or a string within the limit
+    function optStr(d, f, maxLen)   { return d.get(f, null) == null || str(d[f], 0, maxLen); }
+    function isValidEmail(email) {
+      return str(email, 3, 120) && email.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function hasOnlyAllowedFields(fields) { return request.resource.data.keys().hasOnly(fields); }
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ---------- audit pairing ----------
+    // The incoming document's auditId points to a NEW auditLogs entry written in the same batch.
+    function audited(col, id, actions) {
+      let aid = request.resource.data.get('auditId', '');
+      return str(aid, 1, 128)
+          && !exists(auditPath(aid))
+          && existsAfter(auditPath(aid))
+          && getAfter(auditPath(aid)).data.collection == col
+          && getAfter(auditPath(aid)).data.docId == id
+          && getAfter(auditPath(aid)).data.userId == me()
+          && getAfter(auditPath(aid)).data.action in actions;
+    }
+    // A delete must write the audit entry 'delete-<col>-<id>' in the same batch.
+    function auditedDelete(col, id) {
+      let aid = 'delete-' + col + '-' + id;
+      return !exists(auditPath(aid))
+          && existsAfter(auditPath(aid))
+          && getAfter(auditPath(aid)).data.action == 'delete'
+          && getAfter(auditPath(aid)).data.collection == col
+          && getAfter(auditPath(aid)).data.docId == id
+          && getAfter(auditPath(aid)).data.userId == me();
+    }
+
+    // ---------- meta fields on every record ----------
+    function META() { return ['createdAt', 'createdBy', 'updatedAt', 'updatedBy', 'auditId']; }
+    function validMeta(d) {
+      return optStr(d, 'createdAt', 40) && optStr(d, 'createdBy', 128)
+          && str(d.get('updatedAt', ''), 1, 40) && d.get('updatedBy', '') == me();
+    }
+    function createdByMe(d) { return d.get('createdBy', '') == me() && str(d.get('createdAt', ''), 1, 40); }
+    function metaUnchanged() { return areImmutableFieldsUnchanged(['createdAt', 'createdBy']); }
+
+    // ===============================================================
+    // Domain Validators (used in BOTH create and update)
+    // ===============================================================
+    function isValidBeneficiary(d) {
+      return hasOnlyAllowedFields(META().concat(['firstName', 'lastName', 'idNumber', 'dob', 'gender', 'phone',
+               'address', 'area', 'programme', 'enrolmentDate', 'status', 'assignedChwId', 'consent', 'ref']))
+          && str(d.get('firstName', ''), 1, 60) && str(d.get('lastName', ''), 1, 60)
+          && d.get('consent', false) == true                            // POPIA consent mandatory
+          && str(d.get('assignedChwId', ''), 1, 128)
+          && d.get('status', '') in ['active', 'closed']
+          && optStr(d, 'idNumber', 13) && optStr(d, 'dob', 10) && optStr(d, 'gender', 10)
+          && optStr(d, 'phone', 20) && optStr(d, 'address', 200) && optStr(d, 'area', 100)
+          && optStr(d, 'programme', 60) && optStr(d, 'enrolmentDate', 10) && optStr(d, 'ref', 20)
+          && validMeta(d);
+    }
+
+    function isValidVisit(d) {
+      return hasOnlyAllowedFields(META().concat(['beneficiaryId', 'chwId', 'status', 'date', 'location', 'outcome', 'notes']))
+          && str(d.get('beneficiaryId', ''), 1, 128) && str(d.get('chwId', ''), 1, 128)
+          && d.get('status', '') in ['scheduled', 'completed', 'cancelled']
+          && str(d.get('date', ''), 1, 10)
+          && optStr(d, 'location', 200) && optStr(d, 'outcome', 100) && optStr(d, 'notes', 1000)
+          && validMeta(d);
+    }
+
+    function isValidReferral(d) {
+      return hasOnlyAllowedFields(META().concat(['beneficiaryId', 'chwId', 'facility', 'reason', 'urgency',
+               'referralDate', 'status', 'outcomeNotes']))
+          && str(d.get('beneficiaryId', ''), 1, 128) && str(d.get('chwId', ''), 1, 128)
+          && str(d.get('facility', ''), 1, 120)
+          && d.get('urgency', '') in ['routine', 'urgent', 'emergency']
+          && d.get('status', '') in ['pending', 'attended', 'completed', 'missed', 'cancelled']
+          && optStr(d, 'referralDate', 10) && optStr(d, 'reason', 1000) && optStr(d, 'outcomeNotes', 1000)
+          && validMeta(d);
+    }
+
+    function isValidAppointment(d) {
+      return hasOnlyAllowedFields(META().concat(['beneficiaryId', 'chwId', 'datetime', 'purpose', 'status',
+               'reminderChannel', 'reminderDue', 'notes']))
+          && str(d.get('beneficiaryId', ''), 1, 128) && str(d.get('chwId', ''), 1, 128)
+          && str(d.get('datetime', ''), 1, 25)
+          && d.get('status', '') in ['booked', 'rescheduled', 'attended', 'missed', 'cancelled']
+          && (d.get('reminderChannel', null) == null || d.reminderChannel in ['none', 'sms', 'email'])
+          && optStr(d, 'purpose', 200) && optStr(d, 'reminderDue', 25) && optStr(d, 'notes', 1000)
+          && validMeta(d);
+    }
+
+    function isValidReport(d) {
+      return hasOnlyAllowedFields(META().concat(['from', 'to', 'summaryJson', 'status', 'generatedBy', 'approvedBy', 'approvedAt']))
+          && str(d.get('from', ''), 1, 10) && str(d.get('to', ''), 1, 10)
+          && str(d.get('summaryJson', ''), 1, 20000)
+          && d.get('status', '') in ['pending', 'approved']
+          && optStr(d, 'generatedBy', 80) && optStr(d, 'approvedBy', 80) && optStr(d, 'approvedAt', 40)
+          && validMeta(d);
+    }
+
+    function isValidUserProfile(d) {
+      return str(d.get('name', ''), 1, 80)
+          && isValidEmail(d.get('email', ''))
+          && optStr(d, 'phone', 20)
+          && d.get('role', '') in ['pending', 'chw', 'coordinator', 'admin']
+          && (d.get('requestedRole', null) == null || d.requestedRole in ['chw', 'coordinator'])
+          && (d.get('status', null) == null || d.status in ['active', 'deactivated'])
+          && str(d.get('createdAt', ''), 1, 40)
+          && optStr(d, 'updatedAt', 40) && optStr(d, 'updatedBy', 128)
+          && optStr(d, 'approvedBy', 80) && optStr(d, 'approvedAt', 40);
+    }
+
+    function isValidAuditEntry(d) {
+      return d.keys().hasOnly(['action', 'collection', 'docId', 'summary', 'userId', 'userName', 'role', 'at'])
+          && d.keys().hasAll(['action', 'collection', 'docId', 'summary', 'userId', 'userName', 'role', 'at'])
+          && d.action in ['register', 'approve', 'create', 'update', 'delete']
+          && str(d.collection, 1, 40) && str(d.docId, 1, 128) && str(d.summary, 0, 200)
+          && d.userId == me() && str(d.userName, 0, 80) && str(d.at, 1, 40);
+    }
+
+    // ===============================================================
+    // users
+    // ===============================================================
+    // Self sign-up: always a locked 'pending' profile, logged as 'register' in the same batch.
+    function selfSignup(userId) {
+      let d = request.resource.data;
+      return isOwner(userId)
+          && !exists(userPath(userId))
+          && hasOnlyAllowedFields(['name', 'email', 'phone', 'role', 'requestedRole', 'createdAt', 'auditId'])
+          && isValidUserProfile(d)
+          && d.role == 'pending'
+          && d.get('requestedRole', '') in ['chw', 'coordinator']
+          && d.email == request.auth.token.email.lower()
+          && audited('users', userId, ['register']);
+    }
+
+    match /users/{userId} {
+      // Owner (any role, incl. pending) reads their own profile. Admins and coordinators read the team list
+      // (needed to show CHW names on records and in reports). Only admins write.
+      allow get:    if isOwner(userId) || isStaff();
+      allow list:   if isStaff();
+      allow create: if selfSignup(userId)
+                    || (isAdmin()
+                        && userId != me()
+                        && hasOnlyAllowedFields(['name', 'email', 'phone', 'role', 'createdAt', 'updatedAt', 'updatedBy', 'auditId'])
+                        && isValidUserProfile(request.resource.data)
+                        && request.resource.data.role in ['chw', 'coordinator', 'admin']
+                        && audited('users', userId, ['create']));
+      // Only admins edit / approve. Email and createdAt never change. An admin cannot change their own role.
+      allow update: if isAdmin()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['name', 'phone', 'role', 'status', 'updatedAt', 'updatedBy', 'auditId', 'approvedBy', 'approvedAt'])
+                    && isValidUserProfile(request.resource.data)
+                    && request.resource.data.get('updatedBy', '') == me()
+                    && (userId != me() || (request.resource.data.role == 'admin'
+                                           && request.resource.data.get('status', 'active') != 'deactivated'))
+                    && audited('users', userId, ['approve', 'update']);
+      // Full deletion (login + profile) is done by the deleteUser Cloud Function. Without the function (Spark plan)
+      // an admin may remove someone else's PROFILE, logged in the same batch; the Auth login then remains.
+      allow delete: if isAdmin() && userId != me() && auditedDelete('users', userId);
+    }
+
+    // ===============================================================
+    // beneficiaries - a CHW only touches clients assigned to them; coordinators read all
+    // ===============================================================
+    match /beneficiaries/{id} {
+      allow read:   if isStaff() || ownsExisting('assignedChwId');
+      allow create: if canCreateRecord('assignedChwId')
+                    && isValidBeneficiary(request.resource.data)
+                    && createdByMe(request.resource.data)
+                    && audited('beneficiaries', id, ['create']);
+      allow update: if canUpdateRecord('assignedChwId')
+                    && isValidBeneficiary(request.resource.data)
+                    && metaUnchanged()
+                    && audited('beneficiaries', id, ['update']);
+      allow delete: if isAdmin() && auditedDelete('beneficiaries', id);
+    }
+
+    // ===============================================================
+    // visits / referrals / appointments - a CHW only touches their OWN records; coordinators read all
+    // ===============================================================
+    match /visits/{id} {
+      allow read:   if isStaff() || ownsExisting('chwId');
+      allow create: if canCreateRecord('chwId')
+                    && isValidVisit(request.resource.data)
+                    && createdByMe(request.resource.data)
+                    && audited('visits', id, ['create']);
+      allow update: if canUpdateRecord('chwId')
+                    && isValidVisit(request.resource.data)
+                    && metaUnchanged()
+                    && audited('visits', id, ['update']);
+      allow delete: if (isAdmin() || ownsExisting('chwId')) && auditedDelete('visits', id);
+    }
+
+    match /referrals/{id} {
+      allow read:   if isStaff() || ownsExisting('chwId');
+      allow create: if canCreateRecord('chwId')
+                    && isValidReferral(request.resource.data)
+                    && createdByMe(request.resource.data)
+                    && audited('referrals', id, ['create']);
+      allow update: if canUpdateRecord('chwId')
+                    && isValidReferral(request.resource.data)
+                    && metaUnchanged()
+                    && audited('referrals', id, ['update']);
+      allow delete: if (isAdmin() || ownsExisting('chwId')) && auditedDelete('referrals', id);
+    }
+
+    match /appointments/{id} {
+      allow read:   if isStaff() || ownsExisting('chwId');
+      allow create: if canCreateRecord('chwId')
+                    && isValidAppointment(request.resource.data)
+                    && createdByMe(request.resource.data)
+                    && audited('appointments', id, ['create']);
+      allow update: if canUpdateRecord('chwId')
+                    && isValidAppointment(request.resource.data)
+                    && metaUnchanged()
+                    && audited('appointments', id, ['update']);
+      allow delete: if (isAdmin() || ownsExisting('chwId')) && auditedDelete('appointments', id);
+    }
+
+    // ===============================================================
+    // reports - coordinators prepare, ONLY admins approve
+    // ===============================================================
+    match /reports/{id} {
+      allow read:   if isStaff();
+      allow create: if isStaff()
+                    && isValidReport(request.resource.data)
+                    && request.resource.data.status == 'pending'
+                    && createdByMe(request.resource.data)
+                    && audited('reports', id, ['create']);
+      allow update: if (isAdmin()
+                        || (isCoord() && resource.data.status != 'approved' && request.resource.data.status != 'approved'))
+                    && isValidReport(request.resource.data)
+                    && metaUnchanged()
+                    && audited('reports', id, ['update']);
+      allow delete: if (isAdmin() || (isCoord() && resource.data.status != 'approved'))
+                    && auditedDelete('reports', id);
+    }
+
+    // ===============================================================
+    // auditLogs - append-only, readable by admins only
+    // ===============================================================
+    match /auditLogs/{logId} {
+      allow create: if isAuthenticated()
+                    && isValidAuditEntry(request.resource.data)
+                    && (
+                         // approved people log as themselves, with their real role
+                         (active() && request.resource.data.role == myRole()
+                           && request.resource.data.action != 'register')
+                         // self-registration: the matching pending profile is created in the same batch
+                         || (request.resource.data.action == 'register'
+                             && request.resource.data.collection == 'users'
+                             && request.resource.data.docId == me()
+                             && request.resource.data.role == 'pending'
+                             && !exists(userPath(me()))
+                             && getAfter(userPath(me())).data.role == 'pending')
+                       )
+                    // fixed-id delete entries may only describe that exact delete
+                    && (!logId.matches('^delete-.*')
+                        || (request.resource.data.action == 'delete'
+                            && logId == 'delete-' + request.resource.data.collection + '-' + request.resource.data.docId));
+      allow read:   if isAdmin();
+      allow update, delete: if false;   // immutable
+    }
+
+    // ===============================================================
+    // default: deny everything else
+    // ===============================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

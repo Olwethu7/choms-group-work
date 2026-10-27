@@ -1,0 +1,48 @@
+# Builds the Android debug APK in the cloud (no Android Studio needed).
+# Download it from the finished run: Actions tab > Build Android APK > the run > Artifacts.
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths: [ 'android/**', '.github/workflows/android-apk.yml' ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # Best practice: keep your google-services.json out of Git and store its full text as a repository
+      # secret named GOOGLE_SERVICES_JSON (Settings > Secrets and variables > Actions). Otherwise commit the file.
+      - name: Add google-services.json from secret (if provided)
+        env:
+          GSJ: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GSJ" ]; then printf '%s' "$GSJ" > app/google-services.json; fi
+          test -f app/google-services.json || { echo "::error::android/app/google-services.json is missing"; exit 1; }
+          if grep -q "REPLACE_ME" app/google-services.json; then
+            echo "::error::google-services.json is still the placeholder. Follow FIREBASE_SETUP.md step 6, then add your own file (or the GOOGLE_SERVICES_JSON secret)."; exit 1;
+          fi
+
+      - name: Run unit tests
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest --no-daemon
+
+      - name: Build debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CHOMS-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk

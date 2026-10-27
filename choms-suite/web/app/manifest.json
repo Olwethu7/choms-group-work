@@ -1,0 +1,11 @@
+{
+  "name": "CHOMS - Community Health & Outreach Management",
+  "short_name": "CHOMS",
+  "description": "Child welfare outreach: children, visits, referrals and appointments",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#F3F8F9",
+  "theme_color": "#0B7A7A",
+  "icons": [{ "src": "../assets/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}

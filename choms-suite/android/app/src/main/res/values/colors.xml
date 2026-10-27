@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Same palette as the web app and website (brand.css) -->
+    <color name="brand">#0B7A7A</color>
+    <color name="brand_dark">#075B5B</color>
+    <color name="brand_light">#CFEFEA</color>
+    <color name="sun">#FFB400</color>
+    <color name="sun_soft">#FFF1CC</color>
+    <color name="coral">#F25C54</color>
+    <color name="coral_soft">#FFE3E1</color>
+    <color name="sky">#2F9BE0</color>
+    <color name="sky_soft">#DCEFFC</color>
+    <color name="leaf">#1F9D60</color>
+    <color name="leaf_soft">#D9F3E5</color>
+    <color name="ink">#0F2740</color>
+    <color name="bg">#F4FAF9</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="line">#DCE8E6</color>
+    <color name="text_primary">#0F2740</color>
+    <color name="text_secondary">#5B6F82</color>
+    <color name="danger">#C62828</color>
+    <color name="warn">#B45309</color>
+    <color name="ok">#15803D</color>
+    <color name="white">#FFFFFF</color>
+</resources>

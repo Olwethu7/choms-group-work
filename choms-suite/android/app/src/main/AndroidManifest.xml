@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Needed to reach Firebase Authentication and Cloud Firestore -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@drawable/ic_app_icon"
+        android:roundIcon="@drawable/ic_app_icon"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.CHOMS">
+
+        <!-- Login is the launcher screen -->
+        <activity
+            android:name=".ui.LoginActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity android:name=".ui.SignupActivity" android:exported="false"
+            android:parentActivityName=".ui.LoginActivity"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.DashboardActivity" android:exported="false" />
+        <activity android:name=".ui.AppointmentListActivity" android:exported="false"
+            android:parentActivityName=".ui.DashboardActivity" />
+        <activity android:name=".ui.AppointmentFormActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.ApprovalsActivity" android:exported="false"
+            android:parentActivityName=".ui.DashboardActivity" />
+        <activity android:name=".ui.BeneficiaryListActivity" android:exported="false"
+            android:parentActivityName=".ui.DashboardActivity" />
+        <activity android:name=".ui.BeneficiaryFormActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.VisitListActivity" android:exported="false"
+            android:parentActivityName=".ui.DashboardActivity" />
+        <activity android:name=".ui.VisitFormActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.ReferralListActivity" android:exported="false"
+            android:parentActivityName=".ui.DashboardActivity" />
+        <activity android:name=".ui.ReferralFormActivity" android:exported="false"
+            android:windowSoftInputMode="adjustResize" />
+        <activity android:name=".ui.ReportsActivity" android:exported="false"
+            android:parentActivityName=".ui.DashboardActivity" />
+    </application>
+</manifest>
